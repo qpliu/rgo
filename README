@@ -1,0 +1,2 @@
+rgo is a JSON library for Go based on Android's
+android.util.JsonReader and android.util.JsonWriter.
