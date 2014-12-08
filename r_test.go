@@ -532,3 +532,13 @@ func TestSkipValue(t *testing.T) {
 		return
 	}
 }
+
+func TestUTF16(t *testing.T) {
+	r := NewReader(bytes.NewBufferString(`"\uD834\uDD1E"`))
+	if value, err := r.NextString(); err != nil {
+		t.Errorf("TestUTF16:NextString:err=%s", err.Error())
+		return
+	} else if value != "\U0001D11E" {
+		t.Errorf("TestUTF16:NextString=%s", value)
+	}
+}

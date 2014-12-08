@@ -191,7 +191,6 @@ func writeQuotedString(w *Writer, s string) error {
 				return err
 			}
 		default:
-			// UTF-16 surrogate pair
 			panic("rgo: Not implemented")
 		}
 	}
@@ -617,6 +616,28 @@ loop:
 				codePoint, err := strconv.ParseUint(string(buf[:]), 16, 16)
 				if err != nil {
 					return err
+				}
+				if codePoint >= 0xdc00 && codePoint < 0xe000 {
+					return InvalidInput
+				} else if codePoint >= 0xd800 && codePoint < 0xdc00 {
+					if b, err := r.r.ReadByte(); err != nil {
+						return err
+					} else if b != '\\' {
+						return InvalidInput
+					}
+					if b, err := r.r.ReadByte(); err != nil {
+						return err
+					} else if b != 'u' {
+						return InvalidInput
+					}
+					if _, err := r.r.Read(buf[:]); err != nil {
+						return err
+					}
+					lowSurrogate, err := strconv.ParseUint(string(buf[:]), 16, 16)
+					if err != nil {
+						return err
+					}
+					codePoint = 0x10000 + ((codePoint & 0x3ff) << 10) + (lowSurrogate & 0x3ff)
 				}
 				if !skipValue {
 					if _, err := r.value.WriteRune(rune(codePoint)); err != nil {
