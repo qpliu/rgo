@@ -574,28 +574,40 @@ loop:
 			}
 			switch b {
 			case '"', '\\', '/':
-				if err := r.value.WriteByte(b); err != nil {
-					return err
+				if !skipValue {
+					if err := r.value.WriteByte(b); err != nil {
+						return err
+					}
 				}
 			case 'b':
-				if err := r.value.WriteByte(8); err != nil {
-					return err
+				if !skipValue {
+					if err := r.value.WriteByte(8); err != nil {
+						return err
+					}
 				}
 			case 'f':
-				if err := r.value.WriteByte(12); err != nil {
-					return err
+				if !skipValue {
+					if err := r.value.WriteByte(12); err != nil {
+						return err
+					}
 				}
 			case 'n':
-				if err := r.value.WriteByte(10); err != nil {
-					return err
+				if !skipValue {
+					if err := r.value.WriteByte(10); err != nil {
+						return err
+					}
 				}
 			case 'r':
-				if err := r.value.WriteByte(13); err != nil {
-					return err
+				if !skipValue {
+					if err := r.value.WriteByte(13); err != nil {
+						return err
+					}
 				}
 			case 't':
-				if err := r.value.WriteByte(9); err != nil {
-					return err
+				if !skipValue {
+					if err := r.value.WriteByte(9); err != nil {
+						return err
+					}
 				}
 			case 'u':
 				var buf [4]byte
