@@ -1,2 +1,5 @@
 rgo is a JSON library for Go based on Android's
 android.util.JsonReader and android.util.JsonWriter.
+
+BUGS:
+Encodings other than UTF-8 will cause the reader to fail.
