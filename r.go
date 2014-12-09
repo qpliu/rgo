@@ -485,6 +485,10 @@ func (r *Reader) readToken(skipValue bool) error {
 		panic("rgo: Internal error")
 	}
 	if err := r.skipWhitespace(); err != nil {
+		if err == io.EOF {
+			r.token = END_DOCUMENT
+			return nil
+		}
 		return err
 	}
 	b, err := r.r.ReadByte()
@@ -529,22 +533,28 @@ func (r *Reader) readToken(skipValue bool) error {
 		return r.readStringOrName(skipValue)
 	case '-':
 		r.token = NUMBER
-		if err := r.value.WriteByte(b); err != nil {
-			return err
+		if !skipValue {
+			if err := r.value.WriteByte(b); err != nil {
+				return err
+			}
 		}
-		return r.readNumber(skipValue, true, false, false)
+		return r.readNumber(skipValue, true, false)
 	case '0':
 		r.token = NUMBER
-		if err := r.value.WriteByte(b); err != nil {
-			return err
+		if !skipValue {
+			if err := r.value.WriteByte(b); err != nil {
+				return err
+			}
 		}
-		return r.readNumber(skipValue, false, true, true)
+		return r.readNumber(skipValue, false, true)
 	case '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		r.token = NUMBER
-		if err := r.value.WriteByte(b); err != nil {
-			return err
+		if !skipValue {
+			if err := r.value.WriteByte(b); err != nil {
+				return err
+			}
 		}
-		return r.readNumber(skipValue, false, false, false)
+		return r.readNumber(skipValue, false, false)
 	default:
 		return InvalidInput
 	}
@@ -636,6 +646,8 @@ loop:
 					lowSurrogate, err := strconv.ParseUint(string(buf[:]), 16, 16)
 					if err != nil {
 						return err
+					} else if lowSurrogate < 0xdc00 || lowSurrogate >= 0xe000 {
+						return InvalidInput
 					}
 					codePoint = 0x10000 + ((codePoint & 0x3ff) << 10) + (lowSurrogate & 0x3ff)
 				}
@@ -686,14 +698,19 @@ loop:
 	}
 }
 
-func (r *Reader) readNumber(skipValue, digitNeeded, leadingZero, intDone bool) error {
+func (r *Reader) readNumber(skipValue, digitNeeded, leadingZero bool) error {
+	intDone := false
 	fracDone := false
 	signPossible := false
 	for {
 		b, err := r.r.ReadByte()
 		if err != nil {
 			if err == io.EOF {
-				return nil
+				if digitNeeded {
+					return io.ErrUnexpectedEOF
+				} else {
+					return nil
+				}
 			}
 			return err
 		}
@@ -821,10 +838,10 @@ func (r *Reader) NextBoolean() (bool, error) {
 	}
 	if r.token == BOOLEAN {
 		r.token = NO_TOKEN
-		if value, err := r.r.Peek(1); err != nil {
+		if b, err := r.value.ReadByte(); err != nil {
 			panic("rgo: Internal error")
 		} else {
-			return value[0] != 0, nil
+			return b != 0, nil
 		}
 	}
 	return false, IllegalState
