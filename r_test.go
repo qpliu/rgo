@@ -386,11 +386,11 @@ func TestWriteValue(t *testing.T) {
 	}
 	buf.Reset()
 	w = NewWriter(&buf)
-	if err := w.StringValue("\x00\x08\x09\x0a\x0c\x0d\x1f\\\""); err != nil {
+	if err := w.StringValue("\x00\x08\x09\x0a\x0c\x0d\x0f\x10\x1f\\\""); err != nil {
 		t.Errorf("TestWriteValue:EndObject:err=%s", err.Error())
 		return
 	}
-	if s := buf.String(); s != `"\u0000\b\t\n\f\r\u001f\\\""` {
+	if s := buf.String(); s != `"\u0000\b\t\n\f\r\u000f\u0010\u001f\\\""` {
 		t.Errorf("TestWriteValue:s==%s", s)
 		return
 	}

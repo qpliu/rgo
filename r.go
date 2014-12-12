@@ -53,6 +53,13 @@ type Writer struct {
 	w            io.Writer
 	pendingComma bool
 	state        []Token
+	buf          [32]byte
+}
+
+func (w *Writer) writeByte(b byte) error {
+	w.buf[0] = b
+	_, err := w.w.Write(w.buf[:1])
+	return err
 }
 
 // Create a new instance that writes a JSON-encoded stream to w.
@@ -77,7 +84,7 @@ func (w *Writer) beginValue() error {
 		}
 	}
 	if w.pendingComma {
-		if _, err := io.WriteString(w.w, ","); err != nil {
+		if err := w.writeByte(','); err != nil {
 			return err
 		}
 	} else {
@@ -93,7 +100,7 @@ func (w *Writer) BeginArray() error {
 	}
 	w.pendingComma = false
 	w.state = append(w.state, BEGIN_ARRAY)
-	if _, err := io.WriteString(w.w, "["); err != nil {
+	if err := w.writeByte('['); err != nil {
 		return err
 	}
 	return nil
@@ -106,7 +113,7 @@ func (w *Writer) BeginObject() error {
 	}
 	w.pendingComma = false
 	w.state = append(w.state, BEGIN_OBJECT)
-	if _, err := io.WriteString(w.w, "{"); err != nil {
+	if err := w.writeByte('{'); err != nil {
 		return err
 	}
 	return nil
@@ -119,7 +126,7 @@ func (w *Writer) EndArray() error {
 	}
 	w.pendingComma = true
 	w.state = w.state[:len(w.state)-1]
-	if _, err := io.WriteString(w.w, "]"); err != nil {
+	if err := w.writeByte(']'); err != nil {
 		return err
 	}
 	return nil
@@ -132,69 +139,150 @@ func (w *Writer) EndObject() error {
 	}
 	w.pendingComma = true
 	w.state = w.state[:len(w.state)-1]
-	if _, err := io.WriteString(w.w, "}"); err != nil {
+	if err := w.writeByte('}'); err != nil {
 		return err
 	}
 	return nil
 }
 
 func writeQuotedString(w *Writer, s string) error {
-	if _, err := io.WriteString(w.w, `"`); err != nil {
+	if err := w.writeByte('"'); err != nil {
 		return err
 	}
-	for _, ch := range s {
-		switch {
-		case ch == 0x08:
-			if _, err := io.WriteString(w.w, "\\b"); err != nil {
-				return err
+	start := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case 0, 1, 2, 3, 4, 5, 6, 7:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
 			}
-		case ch == 0x09:
-			if _, err := io.WriteString(w.w, "\\t"); err != nil {
-				return err
-			}
-		case ch == 0x0a:
-			if _, err := io.WriteString(w.w, "\\n"); err != nil {
-				return err
-			}
-		case ch == 0x0c:
-			if _, err := io.WriteString(w.w, "\\f"); err != nil {
-				return err
-			}
-		case ch == 0x0d:
-			if _, err := io.WriteString(w.w, "\\r"); err != nil {
-				return err
-			}
-		case ch == 0x22:
-			if _, err := io.WriteString(w.w, "\\\""); err != nil {
-				return err
-			}
-		case ch == 0x5c:
-			if _, err := io.WriteString(w.w, "\\\\"); err != nil {
-				return err
-			}
-		case ch < 0x10:
 			if _, err := io.WriteString(w.w, "\\u000"); err != nil {
 				return err
 			}
-			if _, err := io.WriteString(w.w, strconv.FormatInt(int64(ch), 16)); err != nil {
+			if err := w.writeByte('0' + s[i]); err != nil {
 				return err
 			}
-		case ch < 0x20:
-			if _, err := io.WriteString(w.w, "\\u00"); err != nil {
+			start = i + 1
+		case 8:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\b"); err != nil {
 				return err
 			}
-			if _, err := io.WriteString(w.w, strconv.FormatInt(int64(ch), 16)); err != nil {
+			start = i + 1
+		case 9:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\t"); err != nil {
 				return err
 			}
-		case ch < 0x110000:
-			if _, err := io.WriteString(w.w, string(ch)); err != nil {
+			start = i + 1
+		case 0x0a:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\n"); err != nil {
 				return err
 			}
+			start = i + 1
+		case 0x0c:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\f"); err != nil {
+				return err
+			}
+			start = i + 1
+		case 0x0d:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\r"); err != nil {
+				return err
+			}
+			start = i + 1
+		case 11, 14, 15:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\u000"); err != nil {
+				return err
+			}
+			if err := w.writeByte('a' - 10 + s[i]); err != nil {
+				return err
+			}
+			start = i + 1
+		case 16, 17, 18, 19, 20, 21, 22, 23, 24, 25:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\u001"); err != nil {
+				return err
+			}
+			if err := w.writeByte('0' - 16 + s[i]); err != nil {
+				return err
+			}
+			start = i + 1
+		case 26, 27, 28, 29, 30, 31:
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\u001"); err != nil {
+				return err
+			}
+			if err := w.writeByte('a' - 26 + s[i]); err != nil {
+				return err
+			}
+			start = i + 1
+		case '"':
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\\""); err != nil {
+				return err
+			}
+			start = i + 1
+		case '\\':
+			if start < i {
+				if _, err := io.WriteString(w.w, s[start:i]); err != nil {
+					return err
+				}
+			}
+			if _, err := io.WriteString(w.w, "\\\\"); err != nil {
+				return err
+			}
+			start = i + 1
 		default:
-			panic("rgo: Not implemented")
 		}
 	}
-	if _, err := io.WriteString(w.w, `"`); err != nil {
+	if start < len(s) {
+		if _, err := io.WriteString(w.w, s[start:]); err != nil {
+			return err
+		}
+	}
+	if err := w.writeByte('"'); err != nil {
 		return err
 	}
 	return nil
@@ -207,7 +295,7 @@ func (w *Writer) Name(name string) error {
 	}
 	w.state = append(w.state, NAME)
 	if w.pendingComma {
-		if _, err := io.WriteString(w.w, ","); err != nil {
+		if err := w.writeByte(','); err != nil {
 			return err
 		}
 		w.pendingComma = false
@@ -215,7 +303,7 @@ func (w *Writer) Name(name string) error {
 	if err := writeQuotedString(w, name); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(w.w, ":"); err != nil {
+	if err := w.writeByte(':'); err != nil {
 		return err
 	}
 	return nil
@@ -257,7 +345,7 @@ func (w *Writer) Int64Value(value int64) error {
 	if err := w.beginValue(); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(w.w, strconv.FormatInt(value, 10)); err != nil {
+	if _, err := w.w.Write(strconv.AppendInt(w.buf[:0], value, 10)); err != nil {
 		return err
 	}
 	return nil
@@ -288,7 +376,7 @@ func (w *Writer) Uint64Value(value uint64) error {
 	if err := w.beginValue(); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(w.w, strconv.FormatUint(value, 10)); err != nil {
+	if _, err := w.w.Write(strconv.AppendUint(w.buf[:0], value, 10)); err != nil {
 		return err
 	}
 	return nil
@@ -311,7 +399,7 @@ func (w *Writer) floatValue(value float64, bitSize int) error {
 	if err := w.beginValue(); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(w.w, strconv.FormatFloat(value, 'g', -1, bitSize)); err != nil {
+	if _, err := w.w.Write(strconv.AppendFloat(w.buf[:0], value, 'g', -1, bitSize)); err != nil {
 		return err
 	}
 	return nil
