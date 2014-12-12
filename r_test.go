@@ -34,14 +34,6 @@ func TestWriteArray(t *testing.T) {
 			return
 		}
 	}
-	if err := w.EndObject(); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteArray:EndObject:err=nil")
-		} else {
-			t.Errorf("TestWriteArray:EndObject:err=%s", err.Error())
-		}
-		return
-	}
 	if err := w.EndArray(); err != nil {
 		t.Errorf("TestWriteArray:EndArray:err=%s", err.Error())
 		return
@@ -65,68 +57,6 @@ func TestWriteObject(t *testing.T) {
 	}
 	if s := buf.String(); s != "{}" {
 		t.Errorf("TestWriteObject:expected={},s==%s", s)
-		return
-	}
-	buf.Reset()
-	w = NewWriter(&buf)
-	if err := w.BeginObject(); err != nil {
-		t.Errorf("TestWriteObject:BeginObject:err=%s", err.Error())
-		return
-	}
-	if err := w.BeginArray(); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteObject:BeginArray:err=nil")
-		} else {
-			t.Errorf("TestWriteObject:BeginArray:err=%s", err.Error())
-		}
-		return
-	}
-	if err := w.NullValue(); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteObject:NullValue:err=nil")
-		} else {
-			t.Errorf("TestWriteObject:NullValue:err=%s", err.Error())
-		}
-		return
-	}
-	if err := w.BoolValue(true); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteObject:BoolValue:err=nil")
-		} else {
-			t.Errorf("TestWriteObject:BoolValue:err=%s", err.Error())
-		}
-		return
-	}
-	if err := w.IntValue(0); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteObject:IntValue:err=nil")
-		} else {
-			t.Errorf("TestWriteObject:IntValue:err=%s", err.Error())
-		}
-		return
-	}
-	if err := w.Float64Value(0); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteObject:Float64Value:err=nil")
-		} else {
-			t.Errorf("TestWriteObject:Float64Value:err=%s", err.Error())
-		}
-		return
-	}
-	if err := w.BeginObject(); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteObject:BeginObject:err=nil")
-		} else {
-			t.Errorf("TestWriteObject:BeginObject:err=%s", err.Error())
-		}
-		return
-	}
-	if err := w.EndArray(); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteObject:EndArray:err=nil")
-		} else {
-			t.Errorf("TestWriteObject:EndArray:err=%s", err.Error())
-		}
 		return
 	}
 }
@@ -232,14 +162,6 @@ func TestWriteValue(t *testing.T) {
 	}
 	if err := w.EndObject(); err != nil {
 		t.Errorf("TestWriteValue:EndObject:err=%s", err.Error())
-		return
-	}
-	if err := w.Name("illegal"); err != IllegalState {
-		if err == nil {
-			t.Errorf("TestWriteValue:Name:err=nil")
-		} else {
-			t.Errorf("TestWriteValue:Name:err=%s", err.Error())
-		}
 		return
 	}
 	if err := w.EndArray(); err != nil {
@@ -386,11 +308,11 @@ func TestWriteValue(t *testing.T) {
 	}
 	buf.Reset()
 	w = NewWriter(&buf)
-	if err := w.StringValue("\x00\x08\x09\x0a\x0c\x0d\x0f\x10\x1f\\\""); err != nil {
+	if err := w.StringValue(" \x00 \x08 \x09 \x0a \x0c \x0d \x0f \x10 \x1f \\ \""); err != nil {
 		t.Errorf("TestWriteValue:EndObject:err=%s", err.Error())
 		return
 	}
-	if s := buf.String(); s != `"\u0000\b\t\n\f\r\u000f\u0010\u001f\\\""` {
+	if s := buf.String(); s != `" \u0000 \b \t \n \f \r \u000f \u0010 \u001f \\ \""` {
 		t.Errorf("TestWriteValue:s==%s", s)
 		return
 	}

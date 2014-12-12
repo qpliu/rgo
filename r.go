@@ -52,7 +52,6 @@ var (
 type Writer struct {
 	w            io.Writer
 	pendingComma bool
-	state        []Token
 	buf          [32]byte
 }
 
@@ -68,21 +67,6 @@ func NewWriter(w io.Writer) *Writer {
 }
 
 func (w *Writer) beginValue() error {
-	if len(w.state) > 0 {
-		switch w.state[len(w.state)-1] {
-		case BEGIN_ARRAY:
-			// nothing to be done
-		case NAME:
-			w.state = w.state[:len(w.state)-1]
-			if len(w.state) == 0 || w.state[len(w.state)-1] != BEGIN_OBJECT {
-				panic("rgo: Internal error")
-			}
-		case BEGIN_OBJECT:
-			return IllegalState
-		default:
-			panic("rgo: Internal error")
-		}
-	}
 	if w.pendingComma {
 		if err := w.writeByte(','); err != nil {
 			return err
@@ -99,7 +83,6 @@ func (w *Writer) BeginArray() error {
 		return err
 	}
 	w.pendingComma = false
-	w.state = append(w.state, BEGIN_ARRAY)
 	if err := w.writeByte('['); err != nil {
 		return err
 	}
@@ -112,7 +95,6 @@ func (w *Writer) BeginObject() error {
 		return err
 	}
 	w.pendingComma = false
-	w.state = append(w.state, BEGIN_OBJECT)
 	if err := w.writeByte('{'); err != nil {
 		return err
 	}
@@ -121,11 +103,7 @@ func (w *Writer) BeginObject() error {
 
 // End encoding the current array.
 func (w *Writer) EndArray() error {
-	if len(w.state) == 0 || w.state[len(w.state)-1] != BEGIN_ARRAY {
-		return IllegalState
-	}
 	w.pendingComma = true
-	w.state = w.state[:len(w.state)-1]
 	if err := w.writeByte(']'); err != nil {
 		return err
 	}
@@ -134,11 +112,7 @@ func (w *Writer) EndArray() error {
 
 // End encoding the current object.
 func (w *Writer) EndObject() error {
-	if len(w.state) == 0 || w.state[len(w.state)-1] != BEGIN_OBJECT {
-		return IllegalState
-	}
 	w.pendingComma = true
-	w.state = w.state[:len(w.state)-1]
 	if err := w.writeByte('}'); err != nil {
 		return err
 	}
@@ -290,10 +264,6 @@ func writeQuotedString(w *Writer, s string) error {
 
 // Encode the property name.
 func (w *Writer) Name(name string) error {
-	if len(w.state) == 0 || w.state[len(w.state)-1] != BEGIN_OBJECT {
-		return IllegalState
-	}
-	w.state = append(w.state, NAME)
 	if w.pendingComma {
 		if err := w.writeByte(','); err != nil {
 			return err
