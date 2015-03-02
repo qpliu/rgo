@@ -324,7 +324,7 @@ func TestReadArray(t *testing.T) {
 		t.Errorf("TestReadArray:Peek:err=%s", err.Error())
 		return
 	} else if token != BEGIN_ARRAY {
-		t.Errorf("TestReadArray:Peek:token=%s", token)
+		t.Errorf("TestReadArray:Peek:token=%d", token)
 		return
 	}
 	if err := r.BeginArray(); err != nil {
@@ -429,7 +429,7 @@ func TestReadObject(t *testing.T) {
 		t.Errorf("TestReadObject:Peek:err=%s", err.Error())
 		return
 	} else if token != BEGIN_OBJECT {
-		t.Errorf("TestReadObject:Peek:token=%s", token)
+		t.Errorf("TestReadObject:Peek:token=%d", token)
 		return
 	}
 	if err := r.BeginObject(); err != nil {
@@ -805,7 +805,7 @@ func TestEOF(t *testing.T) {
 		t.Errorf("TestEOF:Peek:err=%s", err.Error())
 		return
 	} else if token != END_DOCUMENT {
-		t.Errorf("TestEOF:Peek:token=%s", token)
+		t.Errorf("TestEOF:Peek:token=%d", token)
 		return
 	}
 	r = NewReader(bytes.NewBufferString("\""))
